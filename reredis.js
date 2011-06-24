@@ -43,8 +43,6 @@ var server = net.createServer(function(stream) {
         return redis;
     });
 
-    stream.on('connect', function() {
-    });
     stream.on('data', function(data) {
         shouldWrite = true;
         numCommands++;
