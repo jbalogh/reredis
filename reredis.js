@@ -1,6 +1,11 @@
 var net = require('net'),
     sys = require('sys');
 
+// * write to multiple servers
+// * read from one server
+// * health checks
+// * return early, watch pipelines
+
 
 // The server that listens for redis connections.
 var server = net.createServer(function(stream) {
