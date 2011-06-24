@@ -48,7 +48,11 @@ var server = net.createServer(function(stream) {
         shouldWrite = true;
         sys.puts(data);
         connections.forEach(function(c) {
-            c.write(data);
+            try {
+                c.write(data);
+            } catch(e) {
+                sys.puts('broken redis');
+            }
         });
     });
     stream.on('end', function() {
