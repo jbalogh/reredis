@@ -6,6 +6,13 @@ var net = require('net'),
 // * health checks
 // * return early, watch pipelines
 
+if (process.argv.length != 3) {
+    sys.puts('Usage: node reredis.js CONFIG_FILE');
+    process.exit();
+}
+var configFile = process.argv[2],
+    prefix = configFile[0] == '/' ? '' : './',
+    config = require(prefix + configFile).config;
 
 // The server that listens for redis connections.
 var server = net.createServer(function(stream) {
@@ -42,9 +49,10 @@ var server = net.createServer(function(stream) {
         sys.puts(e);
     });
 });
-server.listen(6380, 'localhost');
+server.listen(config.port, config.host)
 server.on('error', function(e) {
     sys.puts('server error: ' + e);
 });
 
-sys.puts('proxying localhost:6380 => localhost:6379');
+sys.puts('proxying ' + config.host + ':' + config.port +
+         ' => ' + JSON.stringify(config.redis));
