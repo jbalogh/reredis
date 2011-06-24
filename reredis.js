@@ -1,7 +1,6 @@
 var net = require('net'),
     sys = require('sys');
 
-// * write to multiple servers
 // * read from one server
 // * health checks
 // * return early, watch pipelines
@@ -17,19 +16,28 @@ var configFile = process.argv[2],
 // The server that listens for redis connections.
 var server = net.createServer(function(stream) {
 
+    // Should a redis response be written to the client?
+    var shouldWrite;
+
     // The redis backend we're proxying.
-    var redis = net.createConnection(6379, 'localhost');
-    redis.on('connect', function(){
-        sys.puts('+ connected to redis');
-    });
-    redis.on('data', function(data) {
-        sys.puts('# data: ');
-        sys.puts(data);
-        stream.write(data);
-    });
-    redis.on('error', function(e) {
-        sys.puts('- redis error');
-        sys.puts(e);
+    var connections = config.redis.map(function(r) {
+        var redis = net.createConnection(r.port, r.host);
+        redis.on('connect', function(){
+            sys.puts('+ connected to redis');
+        });
+        redis.on('data', function(data) {
+            sys.puts('# data: ');
+            sys.puts(data);
+            if (shouldWrite) {
+                stream.write(data);
+                shouldWrite = false;
+            }
+        });
+        redis.on('error', function(e) {
+            sys.puts('- redis error');
+            sys.puts(e);
+        });
+        return redis;
     });
 
     stream.on('connect', function() {
@@ -37,8 +45,11 @@ var server = net.createServer(function(stream) {
     });
     stream.on('data', function(data) {
         sys.puts('* data: ');
+        shouldWrite = true;
         sys.puts(data);
-        redis.write(data);
+        connections.forEach(function(c) {
+            c.write(data);
+        });
     });
     stream.on('end', function() {
         sys.puts('- end');

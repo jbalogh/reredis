@@ -9,5 +9,6 @@ exports.config = {
     // The host and ports for our redis connections.
     redis: [
         {host: 'localhost', port: 6379},
+        {host: 'localhost', port: 6378},
     ],
 }
