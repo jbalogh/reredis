@@ -11,4 +11,10 @@ exports.config = {
         {host: 'localhost', port: 6379},
         {host: 'localhost', port: 6378},
     ],
+
+    statsd: {
+        host: 'localhost',
+        port: 8125,
+        prefix: ''
+    }
 }

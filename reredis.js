@@ -1,5 +1,11 @@
-var net = require('net'),
+var dgram = require('dgram'),
+    net = require('net'),
     sys = require('sys');
+
+var numConnections = 0,
+    numConnectionFailures = 0;
+    numFailures = 0,
+    numCommands = 0;
 
 // * read from one server
 // * health checks
@@ -23,51 +29,57 @@ var server = net.createServer(function(stream) {
     var connections = config.redis.map(function(r) {
         var redis = net.createConnection(r.port, r.host);
         redis.on('connect', function(){
-            sys.puts('+ connected to redis');
+            numConnections++;
         });
         redis.on('data', function(data) {
-            sys.puts('# data: ');
-            sys.puts(data);
             if (shouldWrite) {
                 stream.write(data);
                 shouldWrite = false;
             }
         });
         redis.on('error', function(e) {
-            sys.puts('- redis error');
-            sys.puts(e);
+            numConnectionFailures++;
         });
         return redis;
     });
 
     stream.on('connect', function() {
-        sys.puts('+ connection');
     });
     stream.on('data', function(data) {
-        sys.puts('* data: ');
         shouldWrite = true;
-        sys.puts(data);
+        numCommands++;
         connections.forEach(function(c) {
             try {
                 c.write(data);
             } catch(e) {
-                sys.puts('broken redis');
+                numFailures++;
             }
         });
     });
     stream.on('end', function() {
-        sys.puts('- end');
         stream.end();
-    });
-    stream.on('error', function(e) {
-        sys.puts('- stream error');
-        sys.puts(e);
     });
 });
 server.listen(config.port, config.host)
-server.on('error', function(e) {
-    sys.puts('server error: ' + e);
-});
+
+// Log to statsd every second.
+if (config.statsd) {
+    var statsd = dgram.createSocket('udp4');
+    var send = function(key, value) {
+        msg = key + ':' + value + '|c';
+        if (statsd.prefix) {
+            msg = statsd.prefix + '.' + msg;
+        }
+        statsd.send(msg, 0, msg.length, config.statsd.port, config.statsd.host);
+    }
+    setInterval(function(){
+        send('redis.connections', numConnections);
+        send('redis.connections.failures', numConnectionFailures);
+        send('redis.failures', numFailures);
+        send('redis.commands', numCommands);
+        numConnectionFailures = numFailures = numCommands = 0;
+    }, 1000);
+}
 
 sys.puts('proxying ' + config.host + ':' + config.port +
          ' => ' + JSON.stringify(config.redis));
