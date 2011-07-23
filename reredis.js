@@ -3,7 +3,7 @@ var dgram = require('dgram'),
     sys = require('sys');
 
 var numConnections = 0,
-    numConnectionFailures = 0;
+    numConnectionFailures = 0,
     numFailures = 0,
     numCommands = 0;
 
