@@ -24,17 +24,27 @@ var server = net.createServer(function(stream) {
 
     // Should a redis response be written to the client?
     var shouldWrite;
+    // Each redis connection gets a different number. Commands are sent to all
+    // connected servers but we only want to relay the response from one.
+    // The id derived from this counter lets us remember which one we're
+    // talking to.
+    var counter = 0;
 
     // The redis backend we're proxying.
     var connections = config.redis.map(function(r) {
-        var redis = net.createConnection(r.port, r.host);
+        var redis = net.createConnection(r.port, r.host),
+            id = ++counter;
         redis.on('connect', function(){
             numConnections++;
         });
         redis.on('data', function(data) {
-            if (shouldWrite) {
+            // If shouldWrite == true we just sent a command from the client
+            // and are waiting for someone to respond. The first server to
+            // respond overwrites shouldWrite with its connection id, so we
+            // know to accept further writes from that connection.
+            if (shouldWrite === true || shouldWrite === id) {
                 stream.write(data);
-                shouldWrite = false;
+                shouldWrite = id;
             }
         });
         redis.on('error', function(e) {
