@@ -43,8 +43,12 @@ var server = net.createServer(function(stream) {
             // respond overwrites shouldWrite with its connection id, so we
             // know to accept further writes from that connection.
             if (shouldWrite === true || shouldWrite === id) {
-                stream.write(data);
-                shouldWrite = id;
+                try {
+                    stream.write(data);
+                    shouldWrite = id;
+                } catch(e) {
+                    numFailures++;
+                }
             }
         });
         redis.on('error', function(e) {
@@ -63,6 +67,9 @@ var server = net.createServer(function(stream) {
                 numFailures++;
             }
         });
+    });
+    stream.on('error', function() {
+        sys.puts('client error');
     });
     stream.on('end', function() {
         stream.end();
